@@ -9,7 +9,7 @@
   "lowQueueWarning": 3,
   "platforms": {
     "instagram": {
-      "enabled": false,
+      "enabled": true,
       "apiVersion": "v24.0"
     },
     "youtube": {
