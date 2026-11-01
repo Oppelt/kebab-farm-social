@@ -18,7 +18,7 @@
       "hinweis": "Erst einschalten, wenn Google das YouTube-API-Audit bestätigt hat – vorher macht YouTube jedes Video privat."
     },
     "tiktok": {
-      "enabled": false,
+      "enabled": true,
       "mode": "inbox",
       "privacyLevel": "PUBLIC_TO_EVERYONE",
       "hinweis": "mode \"inbox\" = Entwurf in der TikTok-App (du tippst auf Posten). Nach bestandenem TikTok-Audit auf \"direct\" stellen."
