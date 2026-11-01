@@ -204,30 +204,60 @@ async function tiktok() {
 Voraussetzung: App bei developers.tiktok.com mit "Login Kit" + "Content Posting API".
 Bei Login Kit diese Redirect-URI eintragen:
   ${redirect()}`);
-  const clientKey = await ask("Client Key:");
-  const clientSecret = await ask("Client Secret:");
-  const state = crypto.randomBytes(8).toString("hex");
-  open(
-    "https://www.tiktok.com/v2/auth/authorize/?" +
+  say("\nWichtig: Solange die App nicht geprüft ist, Key und Secret von der SANDBOX-Seite nehmen (Schalter „Sandbox“ oben).");
+  const clientKey = (await ask("Client Key:")).replace(/\s+/g, "");
+  const clientSecret = (await ask("Client Secret:")).replace(/\s+/g, "");
+  if (clientKey.length < 10 || clientSecret.length < 10) throw new Error("Client Key oder Client Secret sieht unvollständig aus.");
+
+  let body;
+  for (let attempt = 1; attempt <= 3 && !body?.access_token; attempt++) {
+    const authUrl =
+      "https://www.tiktok.com/v2/auth/authorize/?" +
       form({
         client_key: clientKey,
         scope: "user.info.basic,video.upload,video.publish",
         response_type: "code",
         redirect_uri: redirect(),
-        state,
-      }),
-  );
-  const code = codeFrom(await ask("Im Browser anmelden und erlauben. Danach den Text von der Seite „Fast geschafft“ hier einfügen:"));
-  const { body } = await fetchJson(
-    "https://open.tiktokapis.com/v2/oauth/token/",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form({ client_key: clientKey, client_secret: clientSecret, code: decodeURIComponent(code), grant_type: "authorization_code", redirect_uri: redirect() }),
-    },
-    "TikTok-Anmeldung",
-  );
-  if (!body.access_token) throw new Error(`TikTok-Anmeldung: ${JSON.stringify(body)}`);
+        state: crypto.randomBytes(8).toString("hex"),
+      });
+    copy(authUrl);
+    open(authUrl);
+    say(`
+Die TikTok-Anmeldung öffnet sich im Standard-Browser.
+Falls dort etwas nicht stimmt (falscher Browser, nicht angemeldet): In Chrome eine neue Adresszeile
+anklicken und Strg+V drücken – die Anmelde-Adresse ist schon in der Zwischenablage.`);
+    const pasted = await ask("Mit dem Kebab-Farm-Konto anmelden, „Weiter“ klicken, auf der Seite „Fast geschafft“ auf „Kopieren“ – dann hier einfügen (Rechtsklick) und Enter:");
+    const code = codeFrom(pasted);
+    if (!code) {
+      say("✗ Darin ist kein Code. Bitte den ganzen Text von der Seite „Fast geschafft“ einfügen.");
+      continue;
+    }
+    try {
+      ({ body } = await fetchJson(
+        "https://open.tiktokapis.com/v2/oauth/token/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: form({
+            client_key: clientKey,
+            client_secret: clientSecret,
+            code: code.includes("%") ? decodeURIComponent(code) : code,
+            grant_type: "authorization_code",
+            redirect_uri: redirect(),
+          }),
+        },
+        "TikTok-Anmeldung",
+      ));
+    } catch (e) {
+      body = { error: e.message };
+    }
+    if (!body?.access_token) {
+      say(`\n✗ TikTok hat abgelehnt: ${body?.error_description || body?.error || JSON.stringify(body)}`);
+      say("  Häufige Ursachen: Key/Secret von „Production“ statt „Sandbox“, oder der Code war schon benutzt/abgelaufen (nur ein paar Minuten gültig).");
+      if (attempt < 3) say("  Neuer Versuch …");
+    }
+  }
+  if (!body?.access_token) throw new Error("TikTok konnte nicht verbunden werden (3 Versuche). Fenster bitte offen lassen und den Fehler oben schicken.");
   store(
     "tiktok",
     {
