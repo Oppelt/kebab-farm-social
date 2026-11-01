@@ -13,7 +13,7 @@
       "apiVersion": "v24.0"
     },
     "youtube": {
-      "enabled": true,
+      "enabled": false,
       "privacyStatus": "public",
       "hinweis": "Erst einschalten, wenn Google das YouTube-API-Audit bestätigt hat – vorher macht YouTube jedes Video privat."
     },
