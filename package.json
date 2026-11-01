@@ -1,0 +1,16 @@
+{
+  "name": "kebab-farm-social",
+  "private": true,
+  "description": "Postet automatisch Kebab-Farm-Clips auf Instagram, YouTube Shorts und TikTok",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "clips": "node scripts/make-clips.js",
+    "publish": "node scripts/publish.js",
+    "post": "node scripts/post.js",
+    "post:dry": "node scripts/post.js --dry-run",
+    "status": "node scripts/status.js",
+    "test": "node scripts/selftest.js"
+  }
+}

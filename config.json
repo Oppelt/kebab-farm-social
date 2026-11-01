@@ -1,0 +1,27 @@
+{
+  "game": {
+    "name": "Kebab Farm",
+    "url": "https://www.roblox.com/games/89141717223352/Kebab-Farm"
+  },
+  "language": "en",
+  "repo": "Oppelt/kebab-farm-social",
+  "mediaBaseUrl": "https://oppelt.github.io/kebab-farm-social",
+  "lowQueueWarning": 3,
+  "platforms": {
+    "instagram": {
+      "enabled": false,
+      "apiVersion": "v24.0"
+    },
+    "youtube": {
+      "enabled": false,
+      "privacyStatus": "public",
+      "hinweis": "Erst einschalten, wenn Google das YouTube-API-Audit bestätigt hat – vorher macht YouTube jedes Video privat."
+    },
+    "tiktok": {
+      "enabled": false,
+      "mode": "inbox",
+      "privacyLevel": "PUBLIC_TO_EVERYONE",
+      "hinweis": "mode \"inbox\" = Entwurf in der TikTok-App (du tippst auf Posten). Nach bestandenem TikTok-Audit auf \"direct\" stellen."
+    }
+  }
+}

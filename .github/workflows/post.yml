@@ -1,0 +1,56 @@
+name: Kebab Farm posten
+
+on:
+  schedule:
+    # Täglich 16:00 UTC = 17:00 Winterzeit / 18:00 Sommerzeit (GitHub startet manchmal ein paar Minuten später)
+    - cron: "0 16 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Nur Probelauf (nichts posten)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: posten
+  cancel-in-progress: false
+
+jobs:
+  posten:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Posten
+        env:
+          TOKEN_KEY: ${{ secrets.TOKEN_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/post.js ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Stand speichern
+        if: always() && !inputs.dry_run
+        run: |
+          git config user.name "kebab-farm-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add posts.json state
+          if ! git diff --cached --quiet; then
+            git commit -q -m "Gepostet: $(date -u +%F)"
+            git pull -q --rebase origin main
+            git push -q origin HEAD:main
+          fi
+
+      - name: Gepostete Videos aus GitHub Pages entfernen
+        if: always() && !inputs.dry_run
+        run: |
+          git config user.name "kebab-farm-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node scripts/prune-pages.js

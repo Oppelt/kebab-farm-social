@@ -1,0 +1,13 @@
+{
+  "hinweis": "Einstellungen aus älteren Aufnahmen (ohne schwarze Trenner), von Hand markiert. Zeiten in Sekunden.",
+  "Gameplay_Aufnahme2.mp4": [
+    { "tag": "aerial", "start": 0.4, "end": 5.1 },
+    { "tag": "collect", "start": 5.9, "end": 7.85 },
+    { "tag": "deliver", "start": 7.95, "end": 11.1 },
+    { "tag": "cash", "start": 11.2, "end": 13.4 },
+    { "tag": "walk", "start": 13.5, "end": 16.88 },
+    { "tag": "merge", "start": 16.95, "end": 20.55 },
+    { "tag": "row", "start": 20.65, "end": 27.8 },
+    { "tag": "outro", "start": 27.8, "end": 30.6 }
+  ]
+}

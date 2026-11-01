@@ -1,0 +1,4 @@
+# Lokal: Aufnahmen, Material, fertige Videos, Musik, Schlüssel
+local/
+node_modules/
+*.log
