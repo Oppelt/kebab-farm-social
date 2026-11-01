@@ -6,7 +6,7 @@
   "language": "en",
   "repo": "Oppelt/kebab-farm-social",
   "mediaBaseUrl": "https://oppelt.github.io/kebab-farm-social",
-  "lowQueueWarning": 3,
+  "lowQueueWarning": 9,
   "platforms": {
     "instagram": {
       "enabled": true,

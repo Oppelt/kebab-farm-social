@@ -39,6 +39,24 @@ export const HOOKS = {
     "WELCOME TO KEBAB FARM",
     "BUILD YOUR KEBAB EMPIRE AT NIGHT",
   ],
+  lineup: [
+    "RATE THESE KEBAB MEN 1–10",
+    "WHICH KEBAB MAN WOULD YOU PICK?",
+    "THE RAREST KEBAB MAN IS AT THE END",
+    "WAIT FOR LEVEL 12…",
+  ],
+  speedrun: [
+    "KEBAB FARM SPEEDRUN",
+    "0 TO LEVEL 12 IN 10 SECONDS",
+    "HOW FAST CAN YOU GET RICH?",
+    "THE FASTEST KEBAB EMPIRE EVER",
+  ],
+  grind: [
+    "JUST ONE MORE ROUND…",
+    "WHEN THE KEBAB GRIND HITS",
+    "POV: YOU RUN A KEBAB SHOP",
+    "COLLECT. SELL. REPEAT.",
+  ],
 };
 
 const LINES = {
@@ -66,6 +84,21 @@ const LINES = {
     "Deliver kebabs, collect the cash, buy more Kebab Men 💰",
     "Kebab business is booming 📈",
     "Cash goes brrr 💸🥙",
+  ],
+  lineup: [
+    "Every Kebab Man looks different – which one is your favorite? 🥙",
+    "From Level 1 to Level 12 👀",
+    "The lineup gets better every level ✨",
+  ],
+  speedrun: [
+    "Collect, sell, buy, merge – in seconds ⚡",
+    "Kebab empire speedrun 🥙⚡",
+    "Blink and you miss the merge 👀",
+  ],
+  grind: [
+    "The daily kebab grind 🥙😌",
+    "Collect the kebabs, sell them, get rich 💸",
+    "Running a kebab shop on Roblox hits different 🥙",
   ],
   aerial: [
     "A glowing night-time food court full of kebab shops 🌃🥙",

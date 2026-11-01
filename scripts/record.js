@@ -7,7 +7,8 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { p } from "../lib/util.js";
 
-const MAX_SECONDS = Number(process.argv[2]) || 150;
+// "/film clips 3" dauert gut 2 Minuten (3 Durchgänge à ca. 46 s) – Puffer fürs Hin- und Herwechseln
+const MAX_SECONDS = Number(process.argv[2]) || 330;
 const dir = p("local", "recordings");
 fs.mkdirSync(dir, { recursive: true });
 const stamp = new Date().toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
@@ -20,8 +21,8 @@ console.log(`
   │  AUFNAHME LÄUFT (höchstens ${String(MAX_SECONDS).padEnd(3)} Sekunden)                   │
   │                                                          │
   │  1. Zu Roblox wechseln (Kebab Farm, am besten Vollbild)  │
-  │  2. Im Chat eintippen:  /film clips                      │
-  │  3. Warten, bis der Film vorbei ist (ca. 1 Minute)       │
+  │  2. Im Chat eintippen:  /film clips 3                    │
+  │  3. Warten, bis alle 3 Filme vorbei sind (gut 2 Min.)    │
   │  4. Hierher zurück und Enter drücken                     │
   └──────────────────────────────────────────────────────────┘
 `);

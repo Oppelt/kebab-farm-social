@@ -24,45 +24,57 @@ function rng(seed) {
 const stamp = () => new Date().toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
 
 // ---------- Material ----------
+// Findet die Durchgänge des Film-Modus in einer Aufnahme ("/film clips 3" = 3 Durchgänge). Jeder
+// Durchgang beginnt und endet mit einer langen Schwarzphase, dazwischen trennen kurze Schwarzphasen
+// die Einstellungen. Zwischen zwei Durchgängen ist normales Spiel zu sehen (keine kurzen Trenner).
+export function findTakes(blacks, shots, minShots = 8) {
+  const long = blacks.filter((b) => b.end - b.start >= 1.1);
+  const takes = [];
+  for (let i = 0; i < long.length - 1; i++) {
+    const span = { start: long[i].end, end: long[i + 1].start };
+    const inside = shots.filter((s) => s.start >= span.start - 0.05 && s.end <= span.end + 0.05);
+    if (inside.length >= minShots) takes.push(inside);
+  }
+  return takes;
+}
+
+// Gibt die Namen der neuen Materialien zurück (eins pro Durchgang)
 export function ingest(file) {
   const base = path.basename(file);
   const legacy = readJson(p("content", "legacy.json"))[base];
-  const name = legacy ? path.parse(base).name : `rec-${stamp()}`;
-  const dir = path.join(MATERIAL, name);
-  if (fs.existsSync(path.join(dir, "shots.json"))) {
-    log(`Material ${name} gibt es schon.`);
-    return name;
-  }
-  fs.mkdirSync(dir, { recursive: true });
-
-  let ranges;
+  let takes;
   if (legacy) {
-    ranges = legacy;
+    takes = [legacy];
   } else {
-    // Film-Modus: Anfang und Ende sind lange Schwarzphasen, dazwischen kurze Trenner
-    const blacks = blackSegments(file);
-    const long = blacks.filter((b) => b.end - b.start >= 1.1);
-    if (long.length < 2) throw new Error("Kein Film in der Aufnahme gefunden (keine Schwarzphasen am Anfang/Ende). Lief /film clips?");
-    // der längste helle Bereich zwischen zwei langen Schwarzphasen ist der Film
-    let best = null;
-    for (let i = 0; i < long.length - 1; i++) {
-      const span = long[i + 1].start - long[i].end;
-      if (!best || span > best.end - best.start) best = { start: long[i].end, end: long[i + 1].start };
-    }
-    const shots = shotsBetweenBlack(file, 0.5).filter((s) => s.start >= best.start - 0.05 && s.end <= best.end + 0.05);
-    const tagged = shots.length === SHOT_TAGS.length;
-    if (!tagged) log(`Hinweis: ${shots.length} Einstellungen gefunden, erwartet ${SHOT_TAGS.length} – Zuordnung unsicher.`);
-    ranges = shots.map((s, i) => ({ ...s, tag: tagged ? SHOT_TAGS[i] : "any" }));
+    const shots = shotsBetweenBlack(file, 0.5);
+    takes = findTakes(blackSegments(file), shots).map((inside) => {
+      const tagged = inside.length === SHOT_TAGS.length;
+      if (!tagged) log(`Hinweis: ${inside.length} Einstellungen in einem Durchgang, erwartet ${SHOT_TAGS.length} – Zuordnung unsicher.`);
+      return inside.map((s, i) => ({ ...s, tag: tagged ? SHOT_TAGS[i] : "any" }));
+    });
+    if (!takes.length) throw new Error("Kein Film in der Aufnahme gefunden (keine Schwarzphasen am Anfang/Ende). Lief /film clips?");
   }
 
-  const shots = ranges.map((r, i) => {
-    const out = path.join(dir, `${String(i + 1).padStart(2, "0")}-${r.tag}.mp4`);
-    const { duration: d } = extractShot(file, r.start, r.end, out);
-    return { file: path.relative(dir, out), tag: r.tag, duration: d };
+  const base0 = legacy ? path.parse(base).name : `rec-${stamp()}`;
+  const names = [];
+  takes.forEach((ranges, t) => {
+    const name = takes.length > 1 ? `${base0}-${t + 1}` : base0;
+    const dir = path.join(MATERIAL, name);
+    names.push(name);
+    if (fs.existsSync(path.join(dir, "shots.json"))) {
+      log(`Material ${name} gibt es schon.`);
+      return;
+    }
+    fs.mkdirSync(dir, { recursive: true });
+    const shots = ranges.map((r, i) => {
+      const out = path.join(dir, `${String(i + 1).padStart(2, "0")}-${r.tag}.mp4`);
+      const { duration: d } = extractShot(file, r.start, r.end, out);
+      return { file: path.relative(dir, out), tag: r.tag, duration: d };
+    });
+    writeJson(path.join(dir, "shots.json"), { name, source: file, createdAt: new Date().toISOString(), shots, used: {} });
+    log(`Material ${name}: ${shots.length} Einstellungen.`);
   });
-  writeJson(path.join(dir, "shots.json"), { name, source: file, createdAt: new Date().toISOString(), shots, used: {} });
-  log(`Material ${name}: ${shots.length} Einstellungen.`);
-  return name;
+  return names;
 }
 
 function materials() {
@@ -75,7 +87,7 @@ function materials() {
 }
 
 // ---------- Schnittplan ----------
-function plan(material, recipeName, random) {
+export function plan(material, recipeName, random) {
   const recipe = RECIPES[recipeName];
   const musicName = recipe.music[Math.floor(random() * recipe.music.length)];
   const music = track(musicName);
@@ -92,9 +104,10 @@ function plan(material, recipeName, random) {
     if (!candidates.length) continue;
     let shot = step.pick !== undefined ? candidates[step.pick] : candidates[Math.floor(random() * candidates.length)];
     if (!shot) continue;
-    // dieselbe Einstellung nicht zweimal hintereinander verwenden
+    // dieselbe Einstellung nicht zweimal verwenden – außer als Teaser ganz am Anfang (das Ergebnis
+    // zuerst zeigen, danach wie es dazu kommt)
     if (usedShots.has(shot.file)) continue;
-    usedShots.add(shot.file);
+    if (!step.teaser) usedShots.add(shot.file);
 
     let dur = step.beats * beat;
     let speed = step.speed || 1;
@@ -132,7 +145,7 @@ export function build({ count = 99, only } = {}) {
   fs.mkdirSync(MEDIA, { recursive: true });
 
   for (const material of materials()) {
-    if (only && material.name !== only) continue;
+    if (only && !only.includes(material.name)) continue;
     for (const recipeName of Object.keys(RECIPES)) {
       if (made.length >= count) break;
       if (material.used[recipeName]) continue;
@@ -191,8 +204,8 @@ if (process.argv[1]?.endsWith("make-clips.js")) {
   else if (cmd === "build") build({ count });
   else if (cmd === "auto") {
     pullMain(); // erst den Stand von GitHub holen, damit posts.json nicht kollidiert
-    const name = ingest(arg);
-    const made = build({ only: name, count });
+    const names = ingest(arg);
+    const made = build({ only: names, count });
     if (made.length && !process.argv.includes("--no-publish")) {
       const { publish } = await import("./publish.js");
       await publish();

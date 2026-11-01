@@ -182,5 +182,55 @@ await test("TikTok inbox: Entwurf + Token-Erneuerung", async () => {
   assert.equal(tokens.tiktok.refreshToken, "r2");
 });
 
+await test("Schema: nie dasselbe Format hintereinander, anderer Durchgang bevorzugt", () => {
+  const mk = (id, recipe, source) => ({ id, recipe, source });
+  const posts = [
+    mk("a", "merge", "t1"),
+    mk("b", "merge", "t2"),
+    mk("c", "cash", "t1"),
+    mk("d", "lineup", "t2"),
+    mk("e", "cash", "t2"),
+  ];
+  const posted = { instagram: {} };
+  const order = [];
+  for (let i = 0; i < posts.length; i++) {
+    const next = queue.pickPost(posts, posted, "instagram");
+    order.push(next.id);
+    posted.instagram[next.id] = { at: new Date(Date.UTC(2026, 10, 2, i)).toISOString() };
+  }
+  assert.equal(order.length, 5);
+  assert.equal(new Set(order).size, 5);
+  const recipes = order.map((id) => posts.find((p) => p.id === id).recipe);
+  for (let i = 1; i < recipes.length; i++) assert.notEqual(recipes[i], recipes[i - 1], `Format doppelt: ${recipes.join(",")}`);
+  assert.equal(queue.pickPost(posts, posted, "instagram"), undefined);
+});
+
+await test("Aufnahme mit 3 Durchgängen wird in 3 Materialien getrennt", async () => {
+  const { findTakes } = await import("./make-clips.js");
+  // Durchgang: langes Schwarz, 13 Einstellungen mit kurzem Schwarz dazwischen, langes Schwarz,
+  // danach ein paar Sekunden normales Spiel
+  const blacks = [];
+  const shots = [];
+  let t = 2;
+  for (let take = 0; take < 3; take++) {
+    blacks.push({ start: t, end: t + 1.5 });
+    t += 1.5;
+    for (let s = 0; s < 13; s++) {
+      shots.push({ start: t, end: t + 2 });
+      t += 2;
+      if (s < 12) {
+        blacks.push({ start: t, end: t + 0.5 });
+        t += 0.5;
+      }
+    }
+    blacks.push({ start: t, end: t + 2.3 });
+    t += 2.3 + 5; // normales Spiel bis zum nächsten Durchgang
+    shots.push({ start: t - 5, end: t }); // das Spiel dazwischen zählt als „Einstellung“
+  }
+  const takes = findTakes(blacks, shots);
+  assert.equal(takes.length, 3);
+  assert.ok(takes.every((x) => x.length === 13));
+});
+
 console.log(failures ? `\n${failures} Test(s) fehlgeschlagen` : "\nAlle Tests bestanden.");
 process.exitCode = failures ? 1 : 0;

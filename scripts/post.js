@@ -29,8 +29,12 @@ if (!platforms.length) log("Keine Plattform eingeschaltet (config.json → platf
 
 const errors = [];
 const tokensBefore = JSON.stringify(tokens);
+// Ein Clip pro Lauf für alle Plattformen (ausgesucht nach dem Schema der ersten Plattform); eine
+// Plattform, die ihn schon hatte, sucht sich selbst einen
+let chosen = platforms.length ? queue.pickPost(posts, posted, platforms[0]) : undefined;
 for (const platform of platforms) {
-  const post = queue.nextPost(posts, posted, platform);
+  const post = chosen && !posted[platform][chosen.id] ? chosen : queue.pickPost(posts, posted, platform);
+  chosen ??= post;
   if (!post) {
     errors.push(`${platform}: Warteschlange leer – keine Clips mehr. Neue Aufnahme machen (Aufnahme.cmd).`);
     continue;
@@ -65,7 +69,10 @@ const primary = queue.enabledPlatforms(config)[0];
 if (primary) {
   const left = queue.remaining(posts, posted, primary);
   log(`Noch ${left} Clip(s) in der Warteschlange (${primary}).`);
-  if (left <= (config.lowQueueWarning ?? 3) && !dryRun) await warnLowQueue(left);
+  if (!dryRun) {
+    if (left <= (config.lowQueueWarning ?? 9)) await warnLowQueue(left);
+    else await closeLowQueue();
+  }
 }
 
 if (errors.length) {
@@ -86,17 +93,38 @@ async function warnLowQueue(left) {
       method: "POST",
       headers,
       body: JSON.stringify({
-        title: `Clip-Nachschub: nur noch ${left} Clip(s) übrig`,
+        title: `Clip-Nachschub: nur noch ${left} Clip(s) übrig (ca. ${Math.ceil(left / 3)} Tag(e))`,
         labels: ["nachschub"],
         body:
           "Die Warteschlange ist fast leer.\n\n" +
           "1. Doppelklick auf **Aufnahme.cmd** im Ordner KebabFarmSocial\n" +
-          "2. Roblox (Kebab Farm) im Vollbild öffnen und im Chat `/film clips` tippen\n\n" +
-          "Der Rest (Schneiden, Texte, Hochladen) läuft automatisch. Dieses Issue schließt sich nicht von selbst – einfach schließen, wenn erledigt.",
+          "2. Roblox (Kebab Farm) im Vollbild öffnen und im Chat `/film clips 3` tippen (3 Durchgänge, gut 2 Minuten)\n\n" +
+          "Der Rest (Schneiden, Texte, Hochladen) läuft automatisch. Dieses Issue schließt sich von selbst, sobald wieder genug Clips da sind.",
       }),
     });
     log("Issue „Clip-Nachschub“ angelegt.");
   } catch (err) {
     log("Issue konnte nicht angelegt werden:", err.message);
+  }
+}
+
+// Genug Nachschub da → offenes „Clip-Nachschub“-Issue schließen
+async function closeLowQueue() {
+  const repo = process.env.GITHUB_REPOSITORY;
+  const token = process.env.GITHUB_TOKEN;
+  if (!repo || !token) return;
+  const headers = { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" };
+  try {
+    const open = await (await fetch(`https://api.github.com/repos/${repo}/issues?state=open&labels=nachschub`, { headers })).json();
+    for (const issue of Array.isArray(open) ? open : []) {
+      await fetch(`https://api.github.com/repos/${repo}/issues/${issue.number}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ state: "closed" }),
+      });
+      log(`Issue #${issue.number} „Clip-Nachschub“ geschlossen.`);
+    }
+  } catch (err) {
+    log("Issue konnte nicht geschlossen werden:", err.message);
   }
 }
