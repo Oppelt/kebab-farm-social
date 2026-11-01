@@ -102,60 +102,46 @@ async function github() {
 }
 
 // ---------------- Instagram ----------------
+// Neue Meta-Apps (seit 2026) haben kein "Instagram Login" mehr, sondern "Unified login" über ein
+// Business-Portfolio. Am einfachsten: System-User im Business-Portfolio, dem das Instagram-Konto und
+// die App zugewiesen sind → Token mit instagram_basic + instagram_content_publish, "läuft nie ab".
 async function instagram() {
-  needGithub();
   say(`=== Instagram verbinden ===
-Voraussetzung: Instagram-Konto ist ein Creator- oder Business-Konto, und du hast bei
-developers.facebook.com eine App mit "Instagram API with Instagram Login" angelegt.
-Dort unter "Business login settings" diese Weiterleitungs-URL eintragen:
-  ${redirect()}`);
-  const appId = await ask("Instagram-App-ID:");
-  const appSecret = await ask("Instagram-App-Geheimschlüssel (App Secret):");
-  const url =
-    "https://www.instagram.com/oauth/authorize?" +
-    form({
-      enable_fb_login: "0",
-      force_authentication: "1",
-      client_id: appId,
-      redirect_uri: redirect(),
-      response_type: "code",
-      scope: "instagram_business_basic,instagram_business_content_publish",
-    });
-  open(url);
-  const code = codeFrom(await ask("Im Browser anmelden und erlauben. Danach den Text von der Seite „Fast geschafft“ hier einfügen:"));
+Du brauchst den System-User-Token aus dem Business-Portfolio (Unternehmenseinstellungen →
+Systemnutzer → Token generieren, Ablauf "Nie", Berechtigungen instagram_basic +
+instagram_content_publish).`);
+  const token = (await ask("Token einfügen (Rechtsklick) und Enter:")).replace(/\s+/g, "");
+  const v = config.platforms.instagram.apiVersion || "v24.0";
+  const g = `https://graph.facebook.com/${v}`;
 
-  const { body: short } = await fetchJson(
-    "https://api.instagram.com/oauth/access_token",
-    {
-      method: "POST",
-      body: form({ client_id: appId, client_secret: appSecret, grant_type: "authorization_code", redirect_uri: redirect(), code }),
-    },
-    "Instagram-Anmeldung",
-  );
-  const { body: long } = await fetchJson(
-    `https://graph.instagram.com/access_token?${form({ grant_type: "ig_exchange_token", client_secret: appSecret, access_token: short.access_token })}`,
-    {},
-    "Instagram-Langzeit-Token",
-  );
+  // Welches Instagram-Konto darf der Token? → steht in den "granular_scopes" des Tokens
+  let igId;
+  try {
+    const { body } = await fetchJson(`${g}/debug_token?${form({ input_token: token, access_token: token })}`, {}, "Token prüfen");
+    const scopes = body.data?.granular_scopes || [];
+    igId = scopes.find((s) => s.scope === "instagram_content_publish")?.target_ids?.[0];
+    if (!scopes.some((s) => s.scope === "instagram_content_publish")) {
+      throw new Error("Dem Token fehlt die Berechtigung instagram_content_publish.");
+    }
+  } catch (e) {
+    say(`Hinweis: ${e.message}`);
+  }
+  if (!igId) {
+    igId = await ask("Instagram-Konto-ID nicht automatisch gefunden. Bitte die ID des Instagram-Kontos einfügen\n(Unternehmenseinstellungen → Konten → Instagram-Konten → kebabfarm.roblox):");
+  }
   const { body: me } = await fetchJson(
-    `https://graph.instagram.com/me?${form({ fields: "user_id,username,account_type", access_token: long.access_token })}`,
+    `${g}/${igId}?${form({ fields: "username,name", access_token: token })}`,
     {},
     "Instagram-Konto lesen",
   );
-  store(
-    "instagram",
-    {
-      appId,
-      appSecret,
-      accessToken: long.access_token,
-      issuedAt: Date.now(),
-      expiresAt: Date.now() + long.expires_in * 1000,
-      userId: me.user_id,
-      username: me.username,
-    },
-    true,
+  const { body: limit } = await fetchJson(
+    `${g}/${igId}/content_publishing_limit?${form({ fields: "quota_usage,config", access_token: token })}`,
+    {},
+    "Veröffentlichungs-Kontingent lesen",
   );
-  say(`✓ Instagram verbunden: @${me.username} (${me.account_type}). Ab jetzt postet der Workflow täglich dort.`);
+  store("instagram", { host: "facebook", accessToken: token, neverExpires: true, userId: igId, username: me.username }, true);
+  const quota = limit.data?.[0]?.config?.quota_total;
+  say(`✓ Instagram verbunden: @${me.username}${quota ? ` (bis zu ${quota} Posts pro Tag erlaubt)` : ""}. Ab jetzt postet der Workflow täglich dort.`);
 }
 
 // ---------------- YouTube ----------------
@@ -268,9 +254,12 @@ async function check() {
     try {
       const { refresh } = await import("../lib/platforms/instagram.js");
       await refresh(tokens.instagram);
-      const { body } = await fetchJson(`https://graph.instagram.com/me?${form({ fields: "username", access_token: tokens.instagram.accessToken })}`);
-      const days = Math.round((tokens.instagram.expiresAt - Date.now()) / 864e5);
-      row("Instagram", true, `@${body.username}, Token noch ${days} Tage (wird automatisch erneuert) – ${on("instagram")}`);
+      const t = tokens.instagram;
+      const { base } = await import("../lib/platforms/instagram.js");
+      const who = t.host === "facebook" ? t.userId : "me";
+      const { body } = await fetchJson(`${base(config, t)}/${who}?${form({ fields: "username", access_token: t.accessToken })}`);
+      const days = t.neverExpires ? "läuft nie ab" : `Token noch ${Math.round((t.expiresAt - Date.now()) / 864e5)} Tage (wird automatisch erneuert)`;
+      row("Instagram", true, `@${body.username}, ${days} – ${on("instagram")}`);
     } catch (e) {
       row("Instagram", false, e.message);
     }
