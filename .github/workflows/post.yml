@@ -3,7 +3,8 @@ name: Kebab Farm posten
 on:
   schedule:
     # 3 Clips am Tag: Termine 11, 16 und 20 Uhr UTC = 12, 17 und 21 Uhr Winterzeit (Sommerzeit +1 h).
-    # GitHub lässt geplante Läufe manchmal ganz ausfallen (02.11.2026: alle Termine)
+    # GitHub lässt geplante Läufe manchmal ganz ausfallen (02.11.2026: alle Termine). Darum startet zusätzlich
+    # der externe Wecker cron-job.org den Workflow per API (workflow_dispatch mit slot=true) um :05.
     # → Start bei :07, plus stündlicher Ersatz-Lauf 11–23 Uhr UTC. Mit --slot postet jeder Termin nur einmal.
     # Wichtig: Commits an dieser Datei mit der GitHub-noreply-Adresse machen (siehe git config user.email im Repo),
     # sonst ordnet GitHub den Zeitplan keinem Konto zu.
@@ -16,6 +17,10 @@ on:
     inputs:
       dry_run:
         description: "Nur Probelauf (nichts posten)"
+        type: boolean
+        default: false
+      slot:
+        description: "Wie ein Termin-Lauf: nur posten, wenn der aktuelle Termin noch offen ist (für den externen Wecker cron-job.org)"
         type: boolean
         default: false
 
@@ -33,6 +38,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main # immer der neueste Stand, damit ein wartender Lauf sieht, was der vorige gepostet hat
 
       - uses: actions/setup-node@v4
         with:
@@ -42,7 +49,7 @@ jobs:
         env:
           TOKEN_KEY: ${{ secrets.TOKEN_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/post.js ${{ inputs.dry_run && '--dry-run' || '' }} ${{ github.event_name == 'schedule' && '--slot' || '' }}
+        run: node scripts/post.js ${{ inputs.dry_run && '--dry-run' || '' }} ${{ (github.event_name == 'schedule' || inputs.slot) && '--slot' || '' }}
 
       - name: Stand speichern
         if: always() && !inputs.dry_run
