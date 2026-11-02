@@ -7,6 +7,7 @@
   "repo": "Oppelt/kebab-farm-social",
   "mediaBaseUrl": "https://oppelt.github.io/kebab-farm-social",
   "lowQueueWarning": 9,
+  "slotsUtc": [11, 16, 20],
   "platforms": {
     "instagram": {
       "enabled": true,

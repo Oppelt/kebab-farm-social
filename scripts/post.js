@@ -25,6 +25,25 @@ if (!key && !dryRun) {
 
 let platforms = queue.enabledPlatforms(config);
 if (only) platforms = platforms.filter((pl) => pl === only);
+
+// --slot (geplante Läufe): nur posten, wenn seit dem letzten Termin noch nichts gepostet wurde.
+// So kann ein Ersatz-Lauf einen von GitHub ausgelassenen Termin nachholen, ohne doppelt zu posten.
+if (args.includes("--slot") && platforms.length) {
+  const slot = lastSlot(new Date(), config.slotsUtc ?? [11, 16, 20]);
+  const lastAt = Math.max(0, ...Object.values(posted[platforms[0]]).map((p) => Date.parse(p.at) || 0));
+  if (lastAt >= slot.getTime()) {
+    log(`Termin ${slot.toISOString().slice(0, 16)} UTC ist schon erledigt (${platforms[0]}) – nichts zu tun.`);
+    process.exit(0);
+  }
+  log(`Termin ${slot.toISOString().slice(0, 16)} UTC ist noch offen → poste.`);
+}
+
+function lastSlot(now, hours) {
+  const candidates = [0, 1].flatMap((daysBack) =>
+    hours.map((h) => Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysBack, h)),
+  );
+  return new Date(Math.max(...candidates.filter((t) => t <= now.getTime())));
+}
 if (!platforms.length) log("Keine Plattform eingeschaltet (config.json → platforms.*.enabled).");
 
 const errors = [];

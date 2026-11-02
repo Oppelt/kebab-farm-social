@@ -2,11 +2,16 @@ name: Kebab Farm posten
 
 on:
   schedule:
-    # 3 Clips am Tag (seit 01.11.2026): 11, 16 und 20 Uhr UTC = 12, 17 und 21 Uhr Winterzeit
-    # (Sommerzeit je eine Stunde später). GitHub startet manchmal ein paar Minuten später.
-    - cron: "0 11 * * *"
-    - cron: "0 16 * * *"
-    - cron: "0 20 * * *"
+    # 3 Clips am Tag: Termine 11, 16 und 20 Uhr UTC = 12, 17 und 21 Uhr Winterzeit (Sommerzeit +1 h).
+    # GitHub lässt geplante Läufe zur vollen Stunde manchmal ganz ausfallen (z. B. 02.11.2026 11 Uhr)
+    # → Start bei :07, plus Ersatz-Läufe ~1 h später. Mit --slot postet jeder Termin nur einmal.
+    # Termine müssen zu config.json → slotsUtc passen.
+    - cron: "7 11 * * *"
+    - cron: "7 16 * * *"
+    - cron: "7 20 * * *"
+    - cron: "41 12 * * *"
+    - cron: "41 17 * * *"
+    - cron: "41 21 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -37,7 +42,7 @@ jobs:
         env:
           TOKEN_KEY: ${{ secrets.TOKEN_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/post.js ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: node scripts/post.js ${{ inputs.dry_run && '--dry-run' || '' }} ${{ github.event_name == 'schedule' && '--slot' || '' }}
 
       - name: Stand speichern
         if: always() && !inputs.dry_run
