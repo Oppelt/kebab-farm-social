@@ -196,12 +196,54 @@ export function build({ count = 99, only } = {}) {
   return made;
 }
 
+// ---------- Warteschlange neu rendern ----------
+// Baut alle noch nicht überall geposteten Clips mit demselben Schnitt (gleicher Zufalls-Startwert = id)
+// und denselben Texten neu – z. B. nach einer Korrektur an der Bildbearbeitung.
+export function rerender() {
+  const { config, posts } = queue.load();
+  const byName = new Map(materials().map((m) => [m.name, m]));
+  let done = 0;
+  for (const post of posts.filter((x) => !x.removed)) {
+    const material = byName.get(post.source);
+    const cut = material && plan(material, post.recipe, rng(post.id));
+    if (!cut || cut.musicName !== post.music) {
+      log(`${post.id}: Schnitt nicht reproduzierbar – übersprungen.`);
+      continue;
+    }
+    log(`Baue neu: ${post.file}`);
+    const work = p("local", "work", post.id);
+    const { duration: d } = compose(
+      {
+        segments: cut.segments,
+        hook: post.hook,
+        music: cut.music,
+        endCard: { title: config.game.name.toUpperCase(), sub: "PLAY NOW ON ROBLOX" },
+      },
+      path.join(MEDIA, post.file),
+      work,
+    );
+    fs.rmSync(work, { recursive: true, force: true });
+    post.durationSec = Math.round(d * 10) / 10;
+    done++;
+  }
+  queue.savePosts(posts);
+  log(`${done} Clip(s) neu gebaut.`);
+  return done;
+}
+
 // ---------- Aufruf ----------
 if (process.argv[1]?.endsWith("make-clips.js")) {
   const [cmd, arg] = process.argv.slice(2).filter((a) => !a.startsWith("--"));
   const count = Number(process.argv.find((a) => a.startsWith("--count="))?.split("=")[1]) || undefined;
   if (cmd === "ingest") ingest(arg);
   else if (cmd === "build") build({ count });
+  else if (cmd === "rerender") {
+    pullMain();
+    if (rerender() && !process.argv.includes("--no-publish")) {
+      const { publish } = await import("./publish.js");
+      await publish({ replace: true });
+    }
+  }
   else if (cmd === "auto") {
     pullMain(); // erst den Stand von GitHub holen, damit posts.json nicht kollidiert
     const names = ingest(arg);

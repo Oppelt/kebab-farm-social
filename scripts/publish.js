@@ -7,7 +7,8 @@ import { commitAndPush, git, hasRemote, tryGit } from "../lib/git.js";
 import * as queue from "../lib/queue.js";
 import { log, p } from "../lib/util.js";
 
-export async function publish() {
+// replace: true → vorhandene Videos online mit der lokalen Fassung überschreiben (nach "rerender")
+export async function publish({ replace = false } = {}) {
   if (!hasRemote()) {
     log("Noch kein GitHub-Repo verbunden (npm run setup) – Clips bleiben vorerst lokal in local/media.");
     return false;
@@ -32,7 +33,7 @@ export async function publish() {
     let missing = 0;
     for (const f of keep) {
       const src = p("local", "media", f);
-      if (fs.existsSync(path.join(mediaDir, f))) continue;
+      if (fs.existsSync(path.join(mediaDir, f)) && !(replace && fs.existsSync(src))) continue;
       if (fs.existsSync(src)) fs.copyFileSync(src, path.join(mediaDir, f));
       else missing++;
     }
