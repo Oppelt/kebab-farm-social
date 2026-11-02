@@ -3,15 +3,15 @@ name: Kebab Farm posten
 on:
   schedule:
     # 3 Clips am Tag: Termine 11, 16 und 20 Uhr UTC = 12, 17 und 21 Uhr Winterzeit (Sommerzeit +1 h).
-    # GitHub lässt geplante Läufe zur vollen Stunde manchmal ganz ausfallen (z. B. 02.11.2026 11 Uhr)
-    # → Start bei :07, plus Ersatz-Läufe ~1 h später. Mit --slot postet jeder Termin nur einmal.
+    # GitHub lässt geplante Läufe manchmal ganz ausfallen (02.11.2026: alle Termine)
+    # → Start bei :07, plus stündlicher Ersatz-Lauf 11–23 Uhr UTC. Mit --slot postet jeder Termin nur einmal.
+    # Wichtig: Commits an dieser Datei mit der GitHub-noreply-Adresse machen (siehe git config user.email im Repo),
+    # sonst ordnet GitHub den Zeitplan keinem Konto zu.
     # Termine müssen zu config.json → slotsUtc passen.
     - cron: "7 11 * * *"
     - cron: "7 16 * * *"
     - cron: "7 20 * * *"
-    - cron: "41 12 * * *"
-    - cron: "41 17 * * *"
-    - cron: "41 21 * * *"
+    - cron: "37 11-23 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
