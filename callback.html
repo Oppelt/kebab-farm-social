@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Kebab Farm Anmeldung</title>
+<style>
+  :root { --bg:#14100d; --fg:#fff6e8; --accent:#ffd23f; --ok:#4ade80; --err:#f87171; --muted:#c9b9a6; --box:#241c16; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:17px/1.5 system-ui, "Segoe UI", sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:48px 16px; }
+  h1 { color:var(--accent); font-size:28px; }
+  textarea { width:100%; height:120px; background:var(--box); color:var(--fg); border:1px solid #4a3b30; border-radius:8px; padding:10px; font:14px ui-monospace, monospace; word-break:break-all; }
+  button { margin-top:12px; padding:12px 22px; border:0; border-radius:999px; background:var(--accent); color:#000; font-weight:800; font-size:16px; cursor:pointer; }
+  .ok { color:var(--ok); } .err { color:var(--err); }
+  p { color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fast geschafft</h1>
+  <p id="msg">Kopiere den Text unten und füge ihn im Fenster von <b>npm run setup</b> ein.</p>
+  <textarea id="url" readonly></textarea>
+  <button id="copy">Kopieren</button>
+  <p id="status"></p>
+</main>
+<script>
+  const url = location.href;
+  const params = new URLSearchParams(location.search);
+  document.getElementById("url").value = url;
+  if (params.get("error")) {
+    document.getElementById("msg").innerHTML = '<span class="err">Die Anmeldung wurde abgebrochen: ' +
+      (params.get("error_description") || params.get("error")).replace(/[<>&]/g, "") + "</span>";
+  }
+  document.getElementById("copy").onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      document.getElementById("status").innerHTML = '<span class="ok">Kopiert ✓ – jetzt im Setup-Fenster einfügen (Rechtsklick) und Enter drücken.</span>';
+    } catch {
+      document.getElementById("url").select();
+      document.getElementById("status").textContent = "Bitte mit Strg+C kopieren.";
+    }
+  };
+</script>
+</body>
+</html>
