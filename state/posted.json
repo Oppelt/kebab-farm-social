@@ -187,6 +187,11 @@
       "at": "2026-11-13T18:42:39.860Z",
       "id": "v_inbox_file~v2.7707727871426709526",
       "status": "SEND_TO_USER_INBOX"
+    },
+    "kf-20261101-151852-cash": {
+      "at": "2026-11-14T23:50:08.329Z",
+      "id": "v_inbox_file~v2.7708178067059116054",
+      "status": "SEND_TO_USER_INBOX"
     }
   }
 }
